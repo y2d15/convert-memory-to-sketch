@@ -1,0 +1,380 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{padding:1.5rem 0;font-family:var(--font-sans)}
+.badge{display:inline-flex;align-items:center;gap:5px;background:var(--bg-success);color:var(--text-success);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;margin-bottom:1rem}
+.upload-zone{border:1.5px dashed var(--border-strong);border-radius:12px;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface-1);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--border-accent);background:var(--bg-accent)}
+.upload-zone i{font-size:36px;color:var(--text-muted);display:block;margin-bottom:10px}
+.upload-zone p{color:var(--text-secondary);font-size:13px;line-height:1.7}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.sec-label{font-size:11px;font-weight:500;color:var(--text-muted);margin:14px 0 7px;letter-spacing:.05em;text-transform:uppercase}
+.preset-row{display:flex;gap:6px}
+.preset{flex:1;padding:7px 4px;border:0.5px solid var(--border);border-radius:var(--radius);font-size:12px;cursor:pointer;background:var(--surface-1);color:var(--text-secondary);transition:all .15s;text-align:center}
+.preset:hover{border-color:var(--border-accent);color:var(--text-accent);background:var(--bg-accent)}
+.preset.active{background:var(--bg-accent);color:var(--text-accent);border-color:var(--border-accent);font-weight:500}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.slider-row label{font-size:12px;color:var(--text-secondary);min-width:68px}
+.slider-row span{font-size:12px;font-weight:500;min-width:28px;color:var(--text-primary)}
+.queue-list{margin-top:1rem;display:flex;flex-direction:column;gap:6px}
+.q-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface-1)}
+.q-thumb{width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;border:0.5px solid var(--border)}
+.q-name{font-size:12px;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.q-status{font-size:11px;padding:2px 8px;border-radius:20px;flex-shrink:0}
+.q-status.wait{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+.q-status.proc{background:var(--bg-warning);color:var(--text-warning)}
+.q-status.done{background:var(--bg-success);color:var(--text-success)}
+.q-status.err{background:var(--bg-danger);color:var(--text-danger)}
+.q-dl{padding:3px 8px;font-size:11px;border-radius:var(--radius);cursor:pointer;border:0.5px solid var(--border);background:transparent;color:var(--text-secondary);display:none}
+.q-dl.show{display:inline-block}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:1rem}
+.result-card{border:0.5px solid var(--border);border-radius:10px;overflow:hidden;background:white}
+.result-card canvas{display:block;width:100%;height:auto}
+.result-card .rc-foot{padding:7px 10px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--border);background:var(--surface-1)}
+.rc-foot span{font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.rc-foot button{font-size:11px;padding:3px 8px}
+.progress-bar{height:4px;background:var(--surface-0);border-radius:2px;margin-top:10px;overflow:hidden;display:none}
+.progress-fill{height:100%;background:var(--text-accent);border-radius:2px;transition:width .3s}
+.bulk-actions{display:flex;gap:8px;margin-top:10px;display:none}
+.bulk-actions button{font-size:12px}
+</style>
+
+<div class="app">
+<h2 style="font-size:18px;font-weight:500;color:var(--text-primary);margin-bottom:6px;">색칠 도안 생성기</h2>
+<div class="badge"><i class="ti ti-school" aria-hidden="true"></i> 초등학교 5학년 수준</div>
+
+<div class="upload-zone" id="drop-zone">
+  <input type="file" accept="image/*" multiple id="file-input" onchange="addFiles(this.files)">
+  <i class="ti ti-photos" aria-hidden="true"></i>
+  <p>클릭하거나 사진을 드래그하세요<br><span style="color:var(--text-muted);font-size:11px;">여러 파일 동시 선택 가능 · JPG, PNG, WEBP</span></p>
+</div>
+
+<div class="sec-label">스케치 스타일</div>
+<div class="preset-row">
+  <button class="preset active" onclick="setPreset(1)" id="pre-1">스케치 1<br><span style="font-size:10px;opacity:.7">부드러운 선</span></button>
+  <button class="preset" onclick="setPreset(2)" id="pre-2">스케치 2<br><span style="font-size:10px;opacity:.7">또렷한 윤곽</span></button>
+  <button class="preset" onclick="setPreset(3)" id="pre-3">스케치 3<br><span style="font-size:10px;opacity:.7">굵고 단순</span></button>
+  <button class="preset" onclick="setPreset(4)" id="pre-4">스케치 4<br><span style="font-size:10px;opacity:.7">만화 느낌</span></button>
+</div>
+
+<div class="sec-label">세부 조정</div>
+<div class="slider-row">
+  <label>선 굵기</label>
+  <input type="range" min="1" max="7" value="2" step="1" id="sl-thick" style="flex:1" oninput="onSlider()">
+  <span id="v-thick">2</span>
+</div>
+<div class="slider-row">
+  <label>엣지 감도</label>
+  <input type="range" min="10" max="130" value="35" step="5" id="sl-edge" style="flex:1" oninput="onSlider()">
+  <span id="v-edge">35</span>
+</div>
+<div class="slider-row">
+  <label>밝기</label>
+  <input type="range" min="-50" max="70" value="15" step="5" id="sl-bright" style="flex:1" oninput="onSlider()">
+  <span id="v-bright">+15</span>
+</div>
+<div class="slider-row">
+  <label>블러(전처리)</label>
+  <input type="range" min="0" max="4" value="1" step="1" id="sl-blur" style="flex:1" oninput="onSlider()">
+  <span id="v-blur">1</span>
+</div>
+
+<div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+
+<div class="queue-list" id="queue-list"></div>
+
+<div class="bulk-actions" id="bulk-actions">
+  <button onclick="processAll()"><i class="ti ti-player-play" aria-hidden="true"></i> 전체 생성</button>
+  <button onclick="dlAll()"><i class="ti ti-download" aria-hidden="true"></i> 전체 저장</button>
+  <button onclick="clearAll()"><i class="ti ti-trash" aria-hidden="true"></i> 초기화</button>
+</div>
+
+<div class="result-grid" id="result-grid"></div>
+</div>
+
+<script>
+const PRESETS = {
+  1:{thick:1,edge:30,bright:20,blur:2,desc:'부드러운 선'},
+  2:{thick:2,edge:50,bright:10,blur:1,desc:'또렷한 윤곽'},
+  3:{thick:4,edge:25,bright:25,blur:2,desc:'굵고 단순'},
+  4:{thick:2,edge:60,bright:5,blur:0,desc:'만화 느낌'}
+};
+
+let queue = [];
+let activePreset = 1;
+let sliderDebounce = null;
+
+function setPreset(n){
+  activePreset = n;
+  document.querySelectorAll('.preset').forEach((b,i)=>b.classList.toggle('active',i===n-1));
+  const p = PRESETS[n];
+  document.getElementById('sl-thick').value = p.thick;
+  document.getElementById('sl-edge').value = p.edge;
+  document.getElementById('sl-bright').value = p.bright;
+  document.getElementById('sl-blur').value = p.blur;
+  updateLabels();
+  if(queue.length) scheduleReprocess();
+}
+
+function updateLabels(){
+  document.getElementById('v-thick').textContent = document.getElementById('sl-thick').value;
+  document.getElementById('v-edge').textContent = document.getElementById('sl-edge').value;
+  const b = parseInt(document.getElementById('sl-bright').value);
+  document.getElementById('v-bright').textContent = (b>=0?'+':'')+b;
+  document.getElementById('v-blur').textContent = document.getElementById('sl-blur').value;
+}
+
+function onSlider(){
+  updateLabels();
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+  if(queue.length) scheduleReprocess();
+}
+
+function scheduleReprocess(){
+  clearTimeout(sliderDebounce);
+  sliderDebounce = setTimeout(()=>processAll(true),400);
+}
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');addFiles(e.dataTransfer.files)});
+
+function addFiles(files){
+  Array.from(files).forEach(f=>{
+    if(!f.type.startsWith('image/')) return;
+    const id = Date.now()+Math.random();
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const img = new Image();
+      img.onload = ()=>{
+        queue.push({id,file:f,img,status:'wait',resultCanvas:null,resultA4:null});
+        renderQueue();
+        showBulkActions();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function renderQueue(){
+  const el = document.getElementById('queue-list');
+  el.innerHTML = '';
+  queue.forEach(item=>{
+    const row = document.createElement('div');
+    row.className = 'q-item';
+    row.id = 'qi-'+item.id;
+    const thumb = document.createElement('canvas');
+    thumb.className = 'q-thumb';
+    thumb.width=40;thumb.height=40;
+    const ctx = thumb.getContext('2d');
+    const r = Math.min(40/item.img.width,40/item.img.height);
+    const w=Math.round(item.img.width*r),h=Math.round(item.img.height*r);
+    const ox=Math.round((40-w)/2),oy=Math.round((40-h)/2);
+    ctx.fillStyle='#f0f0f0';ctx.fillRect(0,0,40,40);
+    ctx.drawImage(item.img,ox,oy,w,h);
+    const statusMap={wait:'대기',proc:'처리중',done:'완료',err:'오류'};
+    row.innerHTML = `
+      <span class="q-name">${item.file.name}</span>
+      <span class="q-status ${item.status}" id="qs-${item.id}">${statusMap[item.status]}</span>
+      <button class="q-dl ${item.status==='done'?'show':''}" id="qdl-${item.id}" onclick="dlSingle('${item.id}')"><i class="ti ti-download" aria-hidden="true"></i></button>
+    `;
+    row.insertBefore(thumb, row.firstChild);
+    el.appendChild(row);
+  });
+}
+
+function updateQueueItem(item){
+  const statusMap={wait:'대기',proc:'처리중',done:'완료',err:'오류'};
+  const qs = document.getElementById('qs-'+item.id);
+  const qdl = document.getElementById('qdl-'+item.id);
+  if(qs){qs.className='q-status '+item.status;qs.textContent=statusMap[item.status];}
+  if(qdl) qdl.className='q-dl'+(item.status==='done'?' show':'');
+}
+
+function showBulkActions(){
+  document.getElementById('bulk-actions').style.display='flex';
+  document.getElementById('prog-bar').style.display='block';
+}
+
+async function processAll(reprocess=false){
+  const items = reprocess ? queue : queue.filter(i=>i.status==='wait'||i.status==='err');
+  if(!items.length) return;
+  const progFill = document.getElementById('prog-fill');
+  let done = 0;
+  for(const item of items){
+    item.status='proc';
+    updateQueueItem(item);
+    await new Promise(res=>setTimeout(res,10));
+    try{
+      item.resultCanvas = await renderItem(item);
+      item.status='done';
+    }catch(e){
+      item.status='err';
+    }
+    updateQueueItem(item);
+    done++;
+    progFill.style.width = Math.round(done/items.length*100)+'%';
+    renderResultGrid();
+  }
+}
+
+function getParams(){
+  return {
+    thick: parseInt(document.getElementById('sl-thick').value),
+    edge: parseInt(document.getElementById('sl-edge').value),
+    bright: parseInt(document.getElementById('sl-bright').value),
+    blur: parseInt(document.getElementById('sl-blur').value)
+  };
+}
+
+function renderItem(item){
+  return new Promise(resolve=>{
+    setTimeout(()=>{
+      const p = getParams();
+      const img = item.img;
+      const MAX=700;
+      let w=img.width,h=img.height;
+      const ratio=Math.min(MAX/w,MAX/h,1);
+      w=Math.round(w*ratio);h=Math.round(h*ratio);
+
+      const off=document.createElement('canvas');
+      off.width=w;off.height=h;
+      const ctx=off.getContext('2d');
+      if(p.blur>0) ctx.filter=`blur(${p.blur}px)`;
+      ctx.drawImage(img,0,0,w,h);
+      ctx.filter='none';
+
+      let id=ctx.getImageData(0,0,w,h);
+      const d=id.data;
+
+      for(let i=0;i<d.length;i+=4){
+        const g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+        const gb=Math.min(255,Math.max(0,g+p.bright));
+        d[i]=d[i+1]=d[i+2]=gb;
+      }
+      ctx.putImageData(id,0,0);
+      id=ctx.getImageData(0,0,w,h);
+      const gd=id.data;
+      const gray=new Float32Array(w*h);
+      for(let i=0;i<w*h;i++) gray[i]=gd[i*4];
+
+      const edge=new Float32Array(w*h);
+      for(let y=1;y<h-1;y++){
+        for(let x=1;x<w-1;x++){
+          const idx=y*w+x;
+          const gx=-gray[(y-1)*w+(x-1)]-2*gray[y*w+(x-1)]-gray[(y+1)*w+(x-1)]
+                   +gray[(y-1)*w+(x+1)]+2*gray[y*w+(x+1)]+gray[(y+1)*w+(x+1)];
+          const gy=-gray[(y-1)*w+(x-1)]-2*gray[(y-1)*w+x]-gray[(y-1)*w+(x+1)]
+                   +gray[(y+1)*w+(x-1)]+2*gray[(y+1)*w+x]+gray[(y+1)*w+(x+1)];
+          edge[idx]=Math.sqrt(gx*gx+gy*gy);
+        }
+      }
+      let maxE=0;
+      for(let i=0;i<edge.length;i++) if(edge[i]>maxE) maxE=edge[i];
+      const norm=maxE>0?255/maxE:1;
+
+      for(let i=0;i<w*h;i++){
+        const pi=i*4;
+        const ev=edge[i]*norm;
+        if(ev>p.edge){
+          const intensity=Math.round(Math.max(15,55-(ev/255)*40));
+          gd[pi]=gd[pi+1]=gd[pi+2]=intensity;
+        } else {
+          gd[pi]=gd[pi+1]=gd[pi+2]=255;
+        }
+        gd[pi+3]=255;
+      }
+      ctx.putImageData(id,0,0);
+
+      if(p.thick>1){
+        const dilated=ctx.getImageData(0,0,w,h);
+        const src2=new Uint8ClampedArray(gd);
+        const dd=dilated.data;
+        const r2=Math.ceil(p.thick/2);
+        for(let y=r2;y<h-r2;y++){
+          for(let x=r2;x<w-r2;x++){
+            if(src2[(y*w+x)*4]<200){
+              for(let dy=-r2;dy<=r2;dy++){
+                for(let dx=-r2;dx<=r2;dx++){
+                  if(dx*dx+dy*dy<=r2*r2){
+                    const ni=((y+dy)*w+(x+dx))*4;
+                    dd[ni]=dd[ni+1]=dd[ni+2]=Math.min(dd[ni],src2[(y*w+x)*4]);
+                    dd[ni+3]=255;
+                  }
+                }
+              }
+            }
+          }
+        }
+        ctx.putImageData(dilated,0,0);
+      }
+
+      const THUMB_SIZE=120;
+      const tr=Math.min(THUMB_SIZE/img.width,THUMB_SIZE/img.height);
+      const tw=Math.round(img.width*tr),th=Math.round(img.height*tr);
+      const PAD=8;
+      const final=document.createElement('canvas');
+      final.width=w;final.height=h;
+      const fctx=final.getContext('2d');
+      fctx.drawImage(off,0,0);
+      fctx.save();
+      fctx.fillStyle='rgba(255,255,255,0.85)';
+      fctx.roundRect(PAD-2,PAD-2,tw+4,th+4,6);
+      fctx.fill();
+      fctx.drawImage(img,PAD,PAD,tw,th);
+      fctx.restore();
+      fctx.strokeStyle='rgba(0,0,0,0.15)';
+      fctx.lineWidth=0.5;
+      fctx.strokeRect(PAD,PAD,tw,th);
+
+      resolve(final);
+    },20);
+  });
+}
+
+function renderResultGrid(){
+  const grid=document.getElementById('result-grid');
+  grid.innerHTML='';
+  queue.filter(i=>i.status==='done'&&i.resultCanvas).forEach(item=>{
+    const card=document.createElement('div');
+    card.className='result-card';
+    const c=item.resultCanvas.cloneNode();
+    c.getContext('2d').drawImage(item.resultCanvas,0,0);
+    const foot=document.createElement('div');
+    foot.className='rc-foot';
+    const nm=item.file.name.length>22?item.file.name.slice(0,20)+'…':item.file.name;
+    foot.innerHTML=`<span>${nm}</span><button onclick="dlSingle('${item.id}')"><i class="ti ti-download" aria-hidden="true"></i> 저장</button>`;
+    card.appendChild(c);
+    card.appendChild(foot);
+    grid.appendChild(card);
+  });
+}
+
+function dlSingle(id){
+  const item=queue.find(i=>i.id==id);
+  if(!item||!item.resultCanvas)return;
+  const a=document.createElement('a');
+  a.download='도안_'+item.file.name.replace(/\.[^.]+$/,'')+'.png';
+  a.href=item.resultCanvas.toDataURL('image/png');
+  a.click();
+}
+
+function dlAll(){
+  queue.filter(i=>i.status==='done').forEach((item,idx)=>{
+    setTimeout(()=>dlSingle(item.id),idx*300);
+  });
+}
+
+function clearAll(){
+  queue=[];
+  document.getElementById('queue-list').innerHTML='';
+  document.getElementById('result-grid').innerHTML='';
+  document.getElementById('bulk-actions').style.display='none';
+  document.getElementById('prog-bar').style.display='none';
+  document.getElementById('prog-fill').style.width='0%';
+}
+
+setPreset(1);
+</script>
