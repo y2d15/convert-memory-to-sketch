@@ -1,1 +1,0 @@
-# convert-memory-to-sketch
