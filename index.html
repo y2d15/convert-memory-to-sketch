@@ -316,9 +316,20 @@ function renderItem(item){
       const tw=Math.round(img.width*tr),th=Math.round(img.height*tr);
       const PAD=8;
       const final=document.createElement('canvas');
+      const A4_SHORT = 2480;
+      const A4_LONG = 3508;
+      if (w >= h) {
+          // 가로가 더 긴 사진인 경우
+          final.width = A4_LONG;
+          final.height = A4_SHORT;
+        } else {
+          // 세로가 더 긴 사진인 경우
+          final.width = A4_SHORT;
+          final.height = A4_LONG;
+        }
       final.width=w;final.height=h;
       const fctx=final.getContext('2d');
-      fctx.drawImage(off,0,0);
+      fctx.drawImage(off, 0, 0, final.width, final.height);
       fctx.save();
       fctx.fillStyle='rgba(255,255,255,0.85)';
       fctx.roundRect(PAD-2,PAD-2,tw+4,th+4,6);
